@@ -7186,3 +7186,54 @@ def roulade_lateral_velocity_penalty(
     """Body-frame lateral (y) linear velocity² — keeps the roll straight."""
     asset: Entity = env.scene[asset_cfg.name]
     return torch.nan_to_num(asset.data.root_link_lin_vel_b[:, 1].pow(2), nan=0.0)
+
+
+# ── Jump task (Mjlab-Jump-Flat-MicroDuck) ─────────────────────────────────────
+# The MEASURED objective (validity-gated apex in flight) lives in the FROZEN
+# ruler (mjlab_microduck.ol_eval_jump). These are the AUTHOR's tunable shaping
+# terms — a MINIMAL "get off the ground and land" set; expect the outerloop
+# author to curriculum/rebalance them. AGENTS.md reward rules apply (no jackpots,
+# state-gates not nudges, every Episode_Reward/<penalty> ≤ 0).
+
+
+def _no_ground_contact(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+    """(N,) bool: True where NO robot geom touches the terrain (true flight)."""
+    found = env.scene.sensors[sensor_name].data.found.flatten(start_dim=1)
+    return found.sum(dim=1) == 0
+
+
+def jump_airborne_height(
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+    stand_z: float = 0.115,
+    ground_sensor: str = "robot_ground_contact",
+) -> torch.Tensor:
+    """Per-step trunk height ABOVE standing, only while the whole robot is
+    airborne. Unfarmable: gravity bounds the airborne integral (can't hover)."""
+    asset: Entity = env.scene[asset_cfg.name]
+    z = torch.nan_to_num(
+        asset.data.root_link_pos_w[:, 2] - env.scene.terrain.env_origins[:, 2], nan=0.0
+    )
+    airborne = _no_ground_contact(env, ground_sensor).float()
+    return torch.clamp(z - stand_z, min=0.0) * airborne
+
+
+def jump_takeoff_impulse(
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+    ground_sensor: str = "robot_ground_contact",
+    vz_cap: float = 3.0,
+) -> torch.Tensor:
+    """Bootstrap: reward positive vertical CoM velocity at the takeoff frame
+    (whole-robot ground contact transitions present→absent). vz is capped so a
+    single frame cannot jackpot."""
+    asset: Entity = env.scene[asset_cfg.name]
+    vz = torch.nan_to_num(asset.data.root_link_lin_vel_w[:, 2], nan=0.0)
+    airborne = _no_ground_contact(env, ground_sensor)
+    if not hasattr(env, "_jump_prev_airborne"):
+        env._jump_prev_airborne = torch.zeros_like(airborne)
+    fresh = env.episode_length_buf <= 1
+    env._jump_prev_airborne[fresh] = False
+    takeoff = airborne & (~env._jump_prev_airborne)
+    env._jump_prev_airborne = airborne.clone()
+    return torch.clamp(vz, min=0.0, max=vz_cap) * takeoff.float()

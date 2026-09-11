@@ -75,6 +75,10 @@ from .microduck_roulade_env_cfg import (
     make_microduck_roulade_env_cfg,
     MicroduckRouladeRlCfg,
 )
+from .microduck_jump_env_cfg import (
+    make_microduck_jump_env_cfg,
+    MicroduckJumpRlCfg,
+)
 from .backlash import make_backlash_variant
 
 # Standard velocity task
@@ -230,6 +234,15 @@ register_mjlab_task(
     env_cfg=make_microduck_roulade_env_cfg(),
     play_env_cfg=make_microduck_roulade_env_cfg(play=True),
     rl_cfg=MicroduckRouladeRlCfg,
+    runner_cls=MicroduckOnPolicyRunner,
+)
+
+# Jump — episodic ballistic vertical jump (outerloop target; ruler = ol_eval_jump).
+register_mjlab_task(
+    task_id="Mjlab-Jump-Flat-MicroDuck",
+    env_cfg=make_microduck_jump_env_cfg(),
+    play_env_cfg=make_microduck_jump_env_cfg(play=True),
+    rl_cfg=MicroduckJumpRlCfg,
     runner_cls=MicroduckOnPolicyRunner,
 )
 

@@ -1,0 +1,34 @@
+benchmarks:
+  - name: microduck-jump
+    # Frozen ruler: trains a policy under the committed jump config at a reduced
+    # proxy budget, then scores a VALIDITY-GATED apex height (physics state only,
+    # reward-independent). Invoked with `uv run` because outerloop clones this
+    # repo fresh and builds the env itself in its jail (there is no committed
+    # .venv). See src/mjlab_microduck/ol_eval_jump.py.
+    command: uv run python -m mjlab_microduck.ol_eval_jump --task Mjlab-Jump-Flat-MicroDuck --iters 1000 --envs 4096 --json
+    metric: apex_height_m
+    direction: max
+    gpus: 1
+    eval_minutes: 75
+    seed_env: MD_JUMP_SEED
+    min_delta: 0.02          # PLACEHOLDER — calibrate from seed variance before trusting
+    baseline: cached
+
+budgets:
+  gpu_hours_per_run: 4
+  runs_per_week: 5
+  max_active_attempts: 1        # pacing/width knobs live under budgets in the schema
+  attempt_cooldown_minutes: 30
+
+scope:
+  allowed:
+    - src/mjlab_microduck/tasks/microduck_jump_env_cfg.py
+    - src/mjlab_microduck/tasks/mdp.py     # broad today; move to scope.shared once other benchmarks exist
+
+steward:
+  allowed:
+    - src/mjlab_microduck/ol_eval_jump.py  # the frozen ruler
+    - tests/
+
+roadmap: docs/roadmap.md
+merge: manual
