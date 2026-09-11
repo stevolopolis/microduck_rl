@@ -1,0 +1,510 @@
+<!doctype html>
+<html><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Climb — stevolopolis/microduck_rl</title>
+<script src='https://cdn.jsdelivr.net/npm/chart.js@4'></script>
+<style>
+:root{--bg:#f6f7f4;--card:#ffffff;--ink:#1c2025;--muted:#5d6570;
+--line:#e1e3de;--accent:#2d54ae;--win:#157a4b;--lose:#a7acb0;
+--base:#b8433a;--near:#ac7714}
+@media (prefers-color-scheme: dark){:root:not([data-theme=light]){
+--bg:#121418;--card:#1a1d23;--ink:#e6e8eb;--muted:#99a1ad;
+--line:#2a2e36;--accent:#7398e6;--win:#3cbd83;--lose:#656c76;
+--base:#de7263;--near:#cf9c33}}
+:root[data-theme=dark]{--bg:#121418;--card:#1a1d23;--ink:#e6e8eb;
+--muted:#99a1ad;--line:#2a2e36;--accent:#7398e6;--win:#3cbd83;
+--lose:#656c76;--base:#de7263;--near:#cf9c33}
+a{color:var(--accent)}
+header{display:flex;align-items:center;justify-content:space-between}
+#theme{background:var(--card);border:1px solid var(--line);
+color:var(--muted);border-radius:.4rem;padding:.2rem .6rem;
+font-size:.75rem;cursor:pointer}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);
+color:var(--ink);margin:0;padding:2.5rem 1.5rem;line-height:1.5}
+main{max-width:920px;margin:0 auto}
+header p{color:var(--muted);margin:.25rem 0 0;font-size:.9rem}
+h1{font-size:1.5rem;margin:0}
+h1 span{color:var(--muted);font-weight:400}
+h2{font-size:1.1rem;margin:2.5rem 0 .75rem}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:.4rem;
+padding:.35rem .7rem;font-size:.85rem;color:var(--muted)}
+.chip b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.run{background:var(--card);border:1px solid var(--line);border-radius:.4rem;
+padding:.45rem .7rem;font-size:.85rem;color:var(--muted);
+width:16.5rem;box-sizing:border-box}
+.run .top{display:flex;align-items:center;gap:.5rem}
+.run b{color:var(--ink)}
+.run .dir{margin-top:.15rem;font-size:.8rem}
+.run .lm{display:grid;grid-template-columns:auto 1fr auto;
+  gap:.18rem .4rem;align-items:center;margin-top:.3rem;
+  font-size:.65rem;color:var(--muted)}
+.run .bar{position:relative;height:3px;border-radius:2px;
+  background:var(--line);overflow:hidden}
+.run .bar span{position:absolute;left:0;top:0;height:100%}
+.run .meter{display:flex;gap:2px}
+.run .meter i{flex:1;height:3px;border-radius:1px;background:var(--line)}
+.clegend{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;
+margin:.5rem 0 .25rem;font-size:.75rem;color:var(--muted)}
+.clegend .lgroup{display:flex;align-items:center;gap:.55rem}
+.clegend b{cursor:pointer;font-weight:600}
+.clegend .litem{display:flex;align-items:center;gap:.3rem;cursor:pointer}
+.clegend .litem i{width:14px;height:8px;border:2px solid;
+border-radius:2px;display:inline-block;box-sizing:border-box}
+.pill{border-radius:.6rem;padding:.05rem .55rem;font-size:.72rem;
+font-weight:600;color:#fff}
+.run.queue{width:100%;padding-bottom:.55rem}
+.run.queue table{width:100%;border-collapse:collapse;margin-top:.35rem;
+  font-size:.72rem;font-variant-numeric:tabular-nums}
+.run.queue th{text-align:left;font-weight:500;color:var(--muted);
+  padding:.1rem .6rem .2rem 0;border-bottom:1px solid var(--line)}
+.run.queue td{padding:.17rem .6rem .17rem 0;border-bottom:1px solid var(--line);
+  white-space:nowrap;vertical-align:middle;color:var(--ink)}
+.run.queue tr:last-child td{border-bottom:0}
+.run.queue .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.run.queue td.name{max-width:24rem;overflow:hidden;text-overflow:ellipsis}
+.run.queue td.part,.run.queue td.time{color:var(--muted)}
+.run.queue .st{display:inline-block;min-width:1.5rem;text-align:center;
+  border-radius:.4rem;padding:0 .35rem;font-size:.66rem;font-weight:600}
+.run.queue .st-R{background:var(--win);color:#fff}
+.run.queue .st-PD{background:var(--line);color:var(--muted)}
+.run.queue .st-X{background:var(--near);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:.5rem;
+padding:1rem}
+.card label{font-size:.8rem;color:var(--muted);margin-right:1rem}
+</style></head><body><main>
+<header><h1>stevolopolis/microduck_rl <span>· climb</span></h1>
+<button id='theme' title='theme: auto / light / dark'>auto</button>
+</header>
+<div id='now' class='chips'></div>
+<div id='charts'></div>
+<script>
+const data = {"boards": {}, "directions": {}, "curves": {}};
+const css = n => getComputedStyle(document.body).getPropertyValue(n);
+// theme: auto follows the OS; the button cycles auto/light/dark and
+// the charts redraw so their computed colors follow
+const themeBtn = document.getElementById('theme');
+let onTheme = () => {};
+const applyTheme = t => {
+  if (t === 'light' || t === 'dark')
+    document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  themeBtn.textContent = t;
+};
+let theme = 'auto';
+try { theme = localStorage.getItem('climb-theme') || 'auto'; }
+catch (e) {}
+applyTheme(theme);
+themeBtn.onclick = () => {
+  theme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+  try { localStorage.setItem('climb-theme', theme); } catch (e) {}
+  applyTheme(theme);
+  redraws.forEach(f => f()); onTheme();
+};
+// some hosts stamp data-theme on the root after load; without
+// this the charts keep first-load colors on the flipped ground
+new MutationObserver(() => { redraws.forEach(f => f()); onTheme(); })
+  .observe(document.documentElement,
+    {attributes: true, attributeFilter: ['data-theme']});
+const mq = matchMedia('(prefers-color-scheme: dark)');
+const onMq = () => { redraws.forEach(f => f()); onTheme(); };
+// older iOS Safari has addListener only
+if (mq.addEventListener) mq.addEventListener('change', onMq);
+else if (mq.addListener) mq.addListener(onMq);
+// legend: solid box = shown, hollow box = hidden (no strikethrough)
+const boxLegend = {labels: {generateLabels: (chart) =>
+  chart.data.datasets.map((ds, i) => {
+    const shown = chart.isDatasetVisible(i);
+    const color = ds.borderColor || ds.pointBackgroundColor;
+    return {text: ds.label, datasetIndex: i, hidden: false,
+      fillStyle: shown ? color : 'rgba(0,0,0,0)',
+      strokeStyle: color, lineWidth: 2,
+      fontColor: css('--muted')};
+  })}};
+const axis = () => ({ticks: {color: css('--muted')}, grid: {color: css('--line')}});
+// tooltip copy stays a glance: first clause, strip-sized
+const phrase = s => {
+  if (!s) return '';
+  for (const sep of ['. ', '; ']) {
+    const i = s.indexOf(sep);
+    if (i > 0 && i < 200) { s = s.slice(0, i + 1); break; }
+  }
+  for (const sep of [': ', ' — ', ' -- ']) {
+    const i = s.indexOf(sep);
+    if (i > 0) s = s.slice(0, i);
+  }
+  if (s.length > 64) s = s.slice(0, 63).trimEnd() + '…';
+  return s;
+};
+const hues = [212, 152, 22, 282, 342, 62, 122, 242];
+// identity color from the agent id itself, so the tooltip, the
+// curves chart, and the strip agree even across benchmarks
+const agentHue = a => {
+  const m = /(\d+)$/.exec(a || '');
+  const i = m ? parseInt(m[1], 10) - 1
+    : [...String(a || '')].reduce((h, c) => h + c.charCodeAt(0), 0);
+  return hues[((i % 8) + 8) % 8];
+};
+const isDark = () => document.documentElement.dataset.theme === 'dark'
+  || (document.documentElement.dataset.theme !== 'light'
+      && matchMedia('(prefers-color-scheme: dark)').matches);
+// t in [0,1]: 1 = the agent's identity color (its newest curve);
+// smaller t fades toward the background, so earlier runs recede
+// (lighter on paper, dimmer in the dark theme)
+const agentShade = (a, t) => isDark()
+  ? `hsl(${agentHue(a)} ${40 + 25 * t}% ${30 + 22 * t}%)`
+  : `hsl(${agentHue(a)} ${45 + 15 * t}% ${72 - 24 * t}%)`;
+const agentColor = a => agentShade(a, 1);
+const redraws = [];
+for (const b of Object.keys(data.boards).sort()) {
+  const rows = data.boards[b];
+  const dir = data.directions[b] === 'max' ? 'max' : 'min';
+  const pick = dir === 'max' ? Math.max : Math.min;
+  const won = new Set(['merged', 'improved']);
+  const beats = r => typeof r.baseline === 'number' && (dir === 'max'
+    ? r.candidate > r.baseline : r.candidate < r.baseline);
+  const measured = rows.filter(r => typeof r.candidate === 'number');
+  const baselines = measured.map(r => r.baseline).filter(v => typeof v === 'number');
+  // off-scale attempts (a DNF scored as the whole budget) squash the
+  // axis: hidden unless asked for. Off-scale = worse than 1.5x the
+  // worst baseline, whichever way this benchmark points.
+  const worstBase = baselines.length ? (dir === 'max'
+    ? Math.min(...baselines) : Math.max(...baselines)) : null;
+  const offScale = v => worstBase !== null && (dir === 'max'
+    ? v < worstBase / 1.5 : v > worstBase * 1.5);
+  let best;
+  const bestSoFar = measured.map(r =>
+    best = best === undefined ? r.candidate : pick(best, r.candidate));
+  const wins = rows.filter(r => won.has(r.outcome)).length;
+  const gpu = rows.reduce((a, r) => a + (r.gpu_hours || 0), 0);
+  const el = document.getElementById('charts');
+  const h = document.createElement('h2'); h.textContent = b; el.append(h);
+  const chips = document.createElement('div'); chips.className = 'chips';
+  const chip = (label, value) => {
+    const c = document.createElement('span'); c.className = 'chip';
+    const strong = document.createElement('b'); strong.textContent = value;
+    c.append(label + ' ', strong); chips.append(c); };
+  chip('attempts', rows.length); chip('improved', wins);
+  chip('best (' + dir + ')', measured.length ? bestSoFar[bestSoFar.length - 1] : '—');
+  chip('GPU-hours (recorded)', gpu.toFixed(1)); el.append(chips);
+  const card = document.createElement('div'); card.className = 'card';
+  const c = document.createElement('canvas'); card.append(c); el.append(card);
+  const logBox = document.createElement('label');
+  const cb = document.createElement('input'); cb.type = 'checkbox';
+  logBox.append(cb, ' log scale');
+  const outBox = document.createElement('label');
+  const ob = document.createElement('input'); ob.type = 'checkbox';
+  outBox.append(ob, ' show off-scale attempts');
+  card.append(logBox, outBox);
+  let chart;
+  const draw = () => {
+    const view = measured.filter(r => ob.checked || !offScale(r.candidate));
+    let vb;
+    const viewBest = view.map(r => vb = vb === undefined ? r.candidate
+      : pick(vb, r.candidate));
+    if (chart) chart.destroy();
+    chart = new Chart(c, {type: 'line', data: {labels: view.map(r => r.ended),
+      datasets: [
+        {label: 'candidate', data: view.map(r => r.candidate),
+         showLine: false, pointRadius: 4,
+         borderColor: css('--lose'),
+         pointBackgroundColor: view.map(r =>
+           won.has(r.outcome) ? css('--win')
+           : beats(r) ? css('--near') : css('--lose'))},
+        {label: 'best so far', data: viewBest, stepped: true,
+         borderColor: css('--accent'), borderWidth: 2, pointRadius: 0},
+        // markers, never a connected line: run base is per-run
+        // pairing context — a line reads as a trend, and a stale-base
+        // run landing after a merge can draw an upward step
+        // (borderColor feeds the legend swatch; no line is drawn)
+        {label: 'run base', data: view.map(r => r.baseline),
+         showLine: false, pointStyle: 'crossRot', pointRadius: 4,
+         borderColor: css('--base'),
+         pointBorderColor: css('--base'), pointBorderWidth: 1.5}]},
+      options: {color: css('--muted'),
+        scales: {x: {...axis(), ticks: {color: css('--muted'), maxTicksLimit: 8}},
+                 y: {...axis(), type: cb.checked ? 'logarithmic' : 'linear'}},
+        plugins: {legend: boxLegend,
+          tooltip: {
+            // best-so-far and baseline pass exactly through candidate
+            // points; without the filter every coincident item repeats
+            // the same row in the pop-up
+            filter: i => i.datasetIndex === 0,
+            callbacks: {
+            title: its => { const r0 = view[its[0]?.dataIndex];
+              return r0 ? r0.agent + '  ' + (r0.ended || '').slice(0, 16) : ''; },
+            labelColor: i => ({
+              borderColor: agentColor(view[i.dataIndex].agent),
+              backgroundColor: agentColor(view[i.dataIndex].agent)}),
+            afterLabel: (i) =>
+              [phrase(view[i.dataIndex].hypothesis), view[i.dataIndex].note]
+                .filter(Boolean).join('\n')}}}}});
+  };
+  cb.onchange = draw; ob.onchange = draw; draw(); redraws.push(draw);
+  // the training curves behind the numbers: newest attempts overlaid
+  const bcurves = data.curves[b] || {};
+  // newest curves, capped per agent so every agent stays on the panel
+  // (rows are oldest-first; walk newest-first, keep <=5 per agent)
+  const perAgent = {}; const picked = [];
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i]; if (!bcurves[r.run_id]) continue;
+    perAgent[r.agent] = (perAgent[r.agent] || 0) + 1;
+    if (perAgent[r.agent] <= 5) picked.push(r);
+  }
+  const withCurve = picked.reverse();
+  if (withCurve.length) {
+    const h3 = document.createElement('h2');
+    h3.textContent = b + ' — training curves (newest attempts)';
+    const card2 = document.createElement('div'); card2.className = 'card';
+    const c2 = document.createElement('canvas'); card2.append(c2);
+    const lx = document.createElement('label');
+    const lxb = document.createElement('input'); lxb.type = 'checkbox';
+    lx.append(lxb, ' log x');
+    const ly = document.createElement('label');
+    const lyb = document.createElement('input'); lyb.type = 'checkbox';
+    ly.append(lyb, ' log y');
+    // custom legend: every run stays its own item, grouped under
+    // its agent — the agent name toggles the whole group, a run's
+    // box toggles that line (solid = visible, hollow = hidden)
+    const legendEl = document.createElement('div');
+    legendEl.className = 'clegend';
+    card2.append(legendEl, lx, ly);
+    el.append(h3, card2);
+    let chart2;
+    const buildLegend = () => {
+      legendEl.textContent = '';
+      const groups = [];
+      withCurve.forEach((r, i) => {
+        let g = groups.find(x => x.agent === r.agent);
+        if (!g) { g = {agent: r.agent, items: []}; groups.push(g); }
+        g.items.push(i);
+      });
+      for (const g of groups) {
+        const wrap = document.createElement('span');
+        wrap.className = 'lgroup';
+        const name = document.createElement('b');
+        name.textContent = g.agent;
+        name.style.color = agentColor(g.agent);
+        name.title = 'toggle all ' + g.agent + ' runs';
+        name.onclick = () => {
+          const anyOn = g.items.some(i => chart2.isDatasetVisible(i));
+          g.items.forEach(i => chart2.setDatasetVisibility(i, !anyOn));
+          chart2.update(); buildLegend();
+        };
+        wrap.append(name);
+        for (const i of g.items) {
+          const it = document.createElement('span');
+          it.className = 'litem';
+          const box = document.createElement('i');
+          const color = chart2.data.datasets[i].borderColor;
+          box.style.borderColor = color;
+          if (chart2.isDatasetVisible(i)) box.style.background = color;
+          const lbl = document.createElement('span');
+          lbl.textContent = (withCurve[i].ended || '').slice(5, 16);
+          it.title = 'toggle this run';
+          it.append(box, lbl);
+          it.onclick = () => {
+            chart2.setDatasetVisibility(i, !chart2.isDatasetVisible(i));
+            chart2.update(); buildLegend();
+          };
+          wrap.append(it);
+        }
+        legendEl.append(wrap);
+      }
+    };
+    const draw2 = () => {
+      const hidden = chart2
+        ? withCurve.map((_, i) => !chart2.isDatasetVisible(i)) : [];
+      if (chart2) chart2.destroy();
+      const order = {};
+      withCurve.forEach((r, i) => {
+        (order[r.agent] = order[r.agent] || []).push(i);
+      });
+      const recency = (r, i) => {
+        const sibs = order[r.agent];
+        return sibs.length > 1 ? sibs.indexOf(i) / (sibs.length - 1) : 1;
+      };
+      chart2 = new Chart(c2, {type: 'line', data: {datasets:
+        withCurve.map((r, i) => ({
+          label: r.agent + ' ' + (r.ended || '').slice(5, 16),
+          data: bcurves[r.run_id].map(p => ({x: p[0], y: p[1]})),
+          borderColor: agentShade(r.agent, recency(r, i)),
+          hidden: hidden[i] || false,
+          borderWidth: 1.5, pointRadius: 0}))},
+        options: {color: css('--muted'), parsing: false,
+          scales: {x: {...axis(), type: lxb.checked ? 'logarithmic' : 'linear'},
+                   y: {...axis(), type: lyb.checked ? 'logarithmic' : 'linear'}},
+          plugins: {legend: {display: false}}}});
+      buildLegend();
+    };
+    lxb.onchange = draw2; lyb.onchange = draw2; draw2();
+    redraws.push(draw2);
+  }
+}
+const now = document.getElementById('now');
+let strip = null;
+const refresh = () =>
+  fetch('climb/status.json', {cache: 'no-cache'})
+    .then(r => r.ok ? r.json() : null)
+    .then(s => { if (s && Array.isArray(s.runs)) { strip = s; render(); } })
+    .catch(() => {});
+const stateHue = r => r.state === 'in-review' ? '150 55% 38%'
+  : r.state === 'implementing' ? '262 45% 52%'
+  : r.phase === 'author-sleep' ? '212 55% 46%' : '38 65% 42%';
+// kernel phase names, translated for the page: 'in gate' = the
+// kernel is measuring a submitted candidate; 'experiments' = the
+// author launched its own jobs and sleeps until they finish
+const stateName = r => r.state !== 'waiting' ? r.state.replace('-', ' ')
+  : r.phase === 'author-sleep' ? 'experiments'
+  : r.phase === 'candidate' ? 'in gate' : 'waiting';
+const render = () => {
+  if (!strip) return;
+  now.textContent = '';
+  for (const r of strip.runs) {
+    const card = document.createElement('span'); card.className = 'run';
+    const top = document.createElement('span'); top.className = 'top';
+    const pill = document.createElement('span'); pill.className = 'pill';
+    pill.style.background = `hsl(${stateHue(r)})`;
+    pill.textContent = stateName(r);
+    const who = document.createElement('b'); who.textContent = r.agent;
+    who.style.color = agentColor(r.agent);
+    const mins = Math.max(0, (Date.now() / 1000 - r.since) / 60);
+    const t = mins >= 90 ? (mins / 60).toFixed(1) + ' h' : Math.round(mins) + ' min';
+    const meta = document.createElement('span');
+    meta.title = 'time in this state '
+      + '(since the last transition: park, submit, wake)';
+    meta.textContent = t;
+    top.append(who, pill, meta);
+    if (r.pr_url) {
+      const a = document.createElement('a'); a.href = r.pr_url;
+      a.textContent = 'PR'; top.append(a);
+    }
+    card.append(top);
+    if (r.direction) {
+      const d = document.createElement('span'); d.className = 'dir';
+      d.textContent = r.direction; d.style.display = 'block';
+      card.append(d);
+    }
+    // the agent's life panel: 'exps'/'gate' is the current wait
+    // (bar = progressing), 'depth' and 'GPU-h' are budgets being
+    // consumed (dash meters = life spent)
+    const lm = document.createElement('span'); lm.className = 'lm';
+    const cell = (cls) => {
+      const s = document.createElement('span');
+      if (cls) s.className = cls; return s;
+    };
+    const addRow = (label, mid, value, title) => {
+      const l = cell(); l.textContent = label;
+      const v = cell(); v.textContent = value;
+      l.title = mid.title = v.title = title;
+      lm.append(l, mid, v);
+      return v;
+    };
+    const timeFrac = m =>
+      Math.min(1, (Date.now() / 1000 - r.since) / (m * 60));
+    const layer = (w, color) => {
+      const f = document.createElement('span');
+      f.style.width = Math.round(w * 100) + '%';
+      f.style.background = color; return f;
+    };
+    const dashes = (filled, segs) => {
+      const m = cell('meter');
+      for (let i = 0; i < segs; i++) {
+        const seg = document.createElement('i');
+        if (i < filled) seg.style.background = agentColor(r.agent);
+        m.append(seg);
+      }
+      return m;
+    };
+    if (r.exp_total) {
+      const bar = cell('bar');
+      if (r.exp_minutes)
+        bar.append(layer(timeFrac(r.exp_minutes),
+          agentColor(r.agent).slice(0, -1) + ' / .3)'));
+      bar.append(layer(r.exp_done / r.exp_total, agentColor(r.agent)));
+      addRow('exps', bar, r.exp_done + '/' + r.exp_total + ' done',
+        'experiment jobs: solid = finished, '
+        + 'faint = elapsed vs the longest walltime cap');
+    } else if (r.phase === 'candidate' && r.eval_minutes) {
+      const bar = cell('bar');
+      // the fill stays the agent's color; overdue is flagged by
+      // the number turning the baseline red
+      bar.append(layer(timeFrac(r.eval_minutes), agentColor(r.agent)));
+      const v = addRow('gate', bar,
+        ((Date.now() / 1000 - r.since) / 3600).toFixed(1)
+        + '/' + (r.eval_minutes / 60).toFixed(1) + ' h',
+        'gate eval: time since submission vs its walltime cap. Queue'
+        + ' time counts, so past the cap the job is either still'
+        + ' queued or timed out awaiting the next sweep.');
+      if (timeFrac(r.eval_minutes) >= 1) v.style.color = 'var(--base)';
+    }
+    if (r.depth_k && r.launches_used != null)
+      addRow('depth', dashes(r.launches_used, r.depth_k),
+        r.launches_used + '/' + r.depth_k,
+        'experiment launches used, of the contract depth_k');
+    if (r.gpu_hours_budget && r.gpu_hours_used != null)
+      addRow('GPU-h',
+        dashes(Math.round(20 * r.gpu_hours_used / r.gpu_hours_budget), 20),
+        Number(r.gpu_hours_used).toFixed(0)
+        + '/' + Number(r.gpu_hours_budget),
+        'GPU-hours charged to this run, of the contract budget');
+    if (lm.childNodes.length) card.append(lm);
+    now.append(card);
+  }
+  if (!strip.runs.length) now.textContent = 'no active runs';
+  // the kernel's own Slurm jobs, as squeue would list them (when
+  // published): one full-width card in the strip, running jobs first
+  if (Array.isArray(strip.queue) && strip.queue.length) {
+    const ST = {RUNNING: 'R', PENDING: 'PD', COMPLETING: 'CG', CONFIGURING: 'CF'};
+    // squeue's reading order: running, finishing, starting, waiting, other
+    const RANK = {RUNNING: 0, COMPLETING: 1, CONFIGURING: 2, PENDING: 3};
+    const rank = j => RANK[j.state] ?? 4;
+    const jobs = [...strip.queue].sort((a, b) =>
+      rank(a) - rank(b) || String(a.id).localeCompare(String(b.id)));
+    const card = document.createElement('span'); card.className = 'run queue';
+    const top = document.createElement('span'); top.className = 'top';
+    const who = document.createElement('b'); who.textContent = 'squeue';
+    const meta = document.createElement('span');
+    const running = jobs.filter(j => j.state === 'RUNNING').length;
+    meta.textContent = jobs.length + ' jobs · ' + running + ' running';
+    meta.title = "the kernel's own Slurm jobs, as squeue --me lists them";
+    top.append(who, meta); card.append(top);
+    const table = document.createElement('table');
+    const thead = table.createTHead().insertRow();
+    for (const h of ['JOBID', 'NAME', 'ST', 'TIME', 'PARTITION', 'AGENT']) {
+      const th = document.createElement('th'); th.textContent = h; thead.append(th);
+    }
+    const body = table.createTBody();
+    const td = (tr, text, cls) => {
+      const c = tr.insertCell(); c.textContent = text ?? '';
+      if (cls) c.className = cls; return c;
+    };
+    for (const j of jobs) {
+      const tr = body.insertRow();
+      td(tr, j.id, 'mono');
+      td(tr, j.name, 'mono name').title = j.name;
+      const st = document.createElement('span');
+      const code = ST[j.state] || j.state;
+      st.className = 'st st-' + (code === 'R' || code === 'PD' ? code : 'X');
+      st.textContent = code; st.title = j.state;
+      tr.insertCell().append(st);
+      td(tr, j.elapsed, 'mono time');
+      // a job eligible for several partitions lists them comma-joined;
+      // show the first and count the rest, full list on hover
+      const parts = String(j.partition || '').split(',').filter(Boolean);
+      const pc = td(tr, parts.length > 1 ? parts[0] + ' +' + (parts.length - 1)
+        : parts[0] || '', 'part');
+      pc.title = parts.join(', ');
+      const a = td(tr, j.agent || '—', 'agent');
+      if (j.agent) { a.style.color = agentColor(j.agent); a.style.fontWeight = '600'; }
+    }
+    card.append(table);
+    now.append(card);
+  }
+};
+refresh();
+// the strip re-FETCHES every few minutes (new/left/changed runs) and
+// re-renders the elapsed time locally between fetches
+onTheme = render;
+setInterval(refresh, 180000); setInterval(render, 30000);
+</script></main></body></html>
