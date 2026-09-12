@@ -37,5 +37,18 @@
   "pr_url": "",
   "report": "reports/2026-09-12-microduck-jump-20260912-010029-agent-01.md",
   "note": "API Error: 400 This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id\u2026"
+ },
+ {
+  "run_id": "microduck-jump-20260912-020037-agent-01",
+  "agent": "agent-01",
+  "ended": "2026-09-12 02:00:37",
+  "outcome": "aborted",
+  "baseline": null,
+  "candidate": null,
+  "gpu_hours": 0.0,
+  "hypothesis": "",
+  "pr_url": "",
+  "report": "reports/2026-09-12-microduck-jump-20260912-020037-agent-01.md",
+  "note": "API Error: 400 This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id\u2026"
  }
 ]
