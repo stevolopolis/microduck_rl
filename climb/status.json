@@ -1,26 +1,13 @@
 {
  "target": "stevolopolis/microduck_rl",
- "published": 1789174803.569045,
+ "published": 1789176603.6109283,
  "runs": [],
  "queue": [
-  {
-   "id": "17426520",
-   "name": "climb-microduck-jump-agent-01",
-   "state": "RUNNING",
-   "elapsed": "0:00",
-   "partition": "cpu_short",
-   "submitted": "2026-09-11T21:00:07",
-   "reason": "Prolog",
-   "gres": "N/A",
-   "limit": "6:00:00",
-   "agent": "agent-01",
-   "run_id": ""
-  },
   {
    "id": "17416164",
    "name": "outerloop-resident",
    "state": "RUNNING",
-   "elapsed": "2:13:26",
+   "elapsed": "2:43:28",
    "partition": "cpu_short",
    "submitted": "2026-09-11T18:46:39",
    "reason": "None",
