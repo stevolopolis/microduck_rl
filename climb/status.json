@@ -1,15 +1,15 @@
 {
  "target": "stevolopolis/microduck_rl",
- "published": 1789258185.5256586,
+ "published": 1789278583.4167368,
  "runs": [],
  "queue": [
   {
-   "id": "17492821",
+   "id": "17504333",
    "name": "outerloop-resident",
    "state": "RUNNING",
-   "elapsed": "2:50",
-   "partition": "all",
-   "submitted": "2026-09-12T11:47:18",
+   "elapsed": "0:10",
+   "partition": "cpu_short",
+   "submitted": "2026-09-12T20:09:38",
    "reason": "None",
    "gres": "N/A",
    "limit": "6:00:00",
@@ -17,12 +17,12 @@
    "run_id": ""
   },
   {
-   "id": "17504333",
+   "id": "17593155",
    "name": "outerloop-resident",
    "state": "PENDING",
    "elapsed": "0:00",
    "partition": "cpu_short,cs",
-   "submitted": "2026-09-12T20:09:38",
+   "submitted": "2026-09-13T01:49:39",
    "reason": "Dependency",
    "gres": "N/A",
    "limit": "6:00:00",
